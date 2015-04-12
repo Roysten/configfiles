@@ -1,0 +1,1 @@
+/home/roysten/.config/awesome/rc.lua
