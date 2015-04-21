@@ -83,7 +83,7 @@ end
 tags = {}
 for s = 1, screen.count() do
     -- Each screen has its own tag table.
-    tags[s] = awful.tag({ 1, 2, 3, 4, 5, 6, 7, 8, 9 }, s, layouts[1])
+    tags[s] = awful.tag({ 1, 2, 3, 4,  5}, s, layouts[1])
 end
 -- }}}
 
@@ -114,15 +114,6 @@ menubar.utils.terminal = terminal -- Set the terminal for applications that requ
 -- Create a textclock widget
 mytextclock = awful.widget.textclock()
 
-function executecommand(command)
-	local fh = io.popen(command)
-	local str = ""
-	for i in fh:lines() do
-		str = str .. i
-	end
-	io.close(fh)
-	return str
-end
 
 -- Battery Widget
 criticalcharge = 15
@@ -131,7 +122,7 @@ mybatterywidget = wibox.widget.textbox()
 --Battery widget - Timer
 mytimer = timer({ timeout = 30 })
 
-function refreshBattery()
+function refreshBatteryWidget()
 
 	--Load charge and status
 	local statusHandle = io.open("/sys/class/power_supply/BAT0/status", "r")
@@ -150,7 +141,7 @@ function refreshBattery()
 end
 
 
-mytimer:connect_signal("timeout", refreshBattery)
+mytimer:connect_signal("timeout", refreshBatteryWidget)
 mytimer:start()
 mytimer:emit_signal("timeout")
 
@@ -158,8 +149,47 @@ mytimer:emit_signal("timeout")
 mybatterywidget_t = awful.tooltip({ objects = {mybatterywidget},})
 mybatterywidget:connect_signal("mouse::enter", function()
 	mybatterywidget_t:set_text(status) 
-	refreshBattery()
+	refreshBatteryWidget()
 end)
+
+--Volume widget
+
+function executecommand(command)
+	local fh = io.popen(command)
+	local str = ""
+	for i in fh:lines() do
+		str = str .. i
+	end
+	io.close(fh)
+	return str
+end
+
+myvolumewidget = wibox.widget.textbox()
+
+function updateVolumeWidget()
+	local amixerOutput = executecommand("amixer get Master")
+
+	local muted = string.find(amixerOutput, "off") ~= nil
+
+	local icon
+
+	if muted then
+		icon = " 🔇 "
+	else
+		local percentage = string.match(amixerOutput, "%d?%d?%d%%")
+		local value = tonumber(string.sub(percentage, 1, string.len(percentage) - 1))
+
+		if value == 0 then
+			icon = " 🔈 "
+		elseif value < 70 then
+			icon = " 🔉 "
+		else
+			icon = " 🔊 "
+		end
+	end
+	myvolumewidget:set_markup("<span color='#FFF' font='serif 12'>" .. icon  .. "</span>")
+end
+updateVolumeWidget()
 
 -- Create a wibox for each screen and add it
 mywibox = {}
@@ -240,6 +270,7 @@ for s = 1, screen.count() do
     local right_layout = wibox.layout.fixed.horizontal()
     if s == 1 then right_layout:add(wibox.widget.systray()) end
 	right_layout:add(mybatterywidget)
+	right_layout:add(myvolumewidget)
     right_layout:add(mytextclock)
     right_layout:add(mylayoutbox[s])
 
@@ -293,11 +324,10 @@ globalkeys = awful.util.table.join(
             end
         end),
 
-	awful.key( { }, "XF86AudioRaiseVolume", function() awful.util.spawn("amixer set Master 2%+") end),
-	awful.key( { }, "XF86AudioLowerVolume", function() awful.util.spawn("amixer set Master 2%-") end),
-	awful.key( { }, "XF86AudioMute", function () awful.util.spawn("amixer set Master toggle") end),
+	awful.key( { }, "XF86AudioRaiseVolume", function() awful.util.spawn("amixer set Master 2%+") updateVolumeWidget() end),
+	awful.key( { }, "XF86AudioLowerVolume", function() awful.util.spawn("amixer set Master 2%-") updateVolumeWidget() end),
+	awful.key( { }, "XF86AudioMute", function () awful.util.spawn("amixer set Master toggle") updateVolumeWidget() end),
 	awful.key( { }, "XF86Sleep", function() awful.util.spawn("systemctl suspend") end),
-	awful.key( { }, "XF86AudioPlay", function() awful.util.spawn("dbus-send --print-reply --dest=org.mpris.MediaPlayer2.spotify /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player.PlayPause") end),
 	awful.key( { "Control", "Mod1" --[[Is alt!]] }, "Delete", function() awful.util.spawn("i3lock -c 2ECC71") end),
 
     -- Standard program
