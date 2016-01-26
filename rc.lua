@@ -1,4 +1,5 @@
 -- Standard awesome library
+local redshift = require("redshift")
 local gears = require("gears")
 local awful = require("awful")
 awful.rules = require("awful.rules")
@@ -38,7 +39,12 @@ end
 
 -- {{{ Variable definitions
 -- Themes define colours, icons, and wallpapers
-beautiful.init("/usr/share/awesome/themes/default/theme.lua")
+--beautiful.init("/home/roysten/.config/awesome/default_theme/theme.lua")
+beautiful.init("/home/roysten/.config/awesome/zenburn/theme.lua")
+
+-- Start redshift
+redshift.options = "-l 52:7"
+redshift.init(1)
 
 -- This is used later as the default terminal and editor to run.
 terminal = "sakura"
@@ -174,20 +180,20 @@ function updateVolumeWidget()
 	local icon
 
 	if muted then
-		icon = " 🔇 "
+		icon = "🔇"
 	else
 		local percentage = string.match(amixerOutput, "%d?%d?%d%%")
 		local value = tonumber(string.sub(percentage, 1, string.len(percentage) - 1))
 
 		if value == 0 then
-			icon = " 🔈 "
+			icon = "🔈"
 		elseif value < 70 then
-			icon = " 🔉 "
+			icon = "🔉"
 		else
-			icon = " 🔊 "
+			icon = "🔊"
 		end
 	end
-	myvolumewidget:set_markup("<span color='#FFF' font='serif 12'>" .. icon  .. "</span>")
+	myvolumewidget:set_markup("  <span color='#FFF' font='serif 11'>" .. icon  .. "</span>  ")
 end
 updateVolumeWidget()
 
@@ -324,11 +330,13 @@ globalkeys = awful.util.table.join(
             end
         end),
 
+	awful.key( { }, "XF86Launch3", function() redshift.toggle() end),
 	awful.key( { }, "XF86AudioRaiseVolume", function() awful.util.spawn("amixer set Master 2%+") updateVolumeWidget() end),
 	awful.key( { }, "XF86AudioLowerVolume", function() awful.util.spawn("amixer set Master 2%-") updateVolumeWidget() end),
 	awful.key( { }, "XF86AudioMute", function () awful.util.spawn("amixer set Master toggle") updateVolumeWidget() end),
 	awful.key( { }, "XF86Sleep", function() awful.util.spawn("systemctl suspend") end),
-	awful.key( { "Control", "Mod1" --[[Is alt!]] }, "Delete", function() awful.util.spawn("i3lock -c 2ECC71") end),
+	awful.key( { "Control", "Mod1" --[[Is alt!]] }, "Delete", function() awful.util.spawn("i3lock --24 -i /home/roysten/wallpapers/lockscreen_scaled.png -o '#EBA42A' -w '#BF3232' -l '#ffffff'") end),
+	--awful.key( { "Control", "Mod1" --[[Is alt!]] }, "Delete", function() awful.util.spawn("bash -c \"scrot /tmp/i3.png; convert /tmp/i3.png -blur 0x3 /tmp/i3.png; i3lock -i /tmp/i3.png\"") end),
 
     -- Standard program
     awful.key({ modkey,           }, "Return", function () awful.util.spawn(terminal) end),
