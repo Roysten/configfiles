@@ -40,7 +40,7 @@ end
 -- {{{ Variable definitions
 -- Themes define colours, icons, and wallpapers
 --beautiful.init("/home/roysten/.config/awesome/default_theme/theme.lua")
-beautiful.init("/home/roysten/.config/awesome/zenburn/theme.lua")
+beautiful.init("/home/roysten/.config/awesome/themes/zenburn/theme.lua")
 
 -- Start redshift
 redshift.options = "-l 52:7"
@@ -62,17 +62,6 @@ modkey = "Mod4"
 local layouts =
 {
     awful.layout.suit.floating,
-    awful.layout.suit.tile,
-    awful.layout.suit.tile.left,
-    awful.layout.suit.tile.bottom,
-    awful.layout.suit.tile.top,
-    awful.layout.suit.fair,
-    awful.layout.suit.fair.horizontal,
-    awful.layout.suit.spiral,
-    awful.layout.suit.spiral.dwindle,
-    awful.layout.suit.max,
-    awful.layout.suit.max.fullscreen,
-    awful.layout.suit.magnifier
 }
 -- }}}
 
@@ -200,7 +189,6 @@ updateVolumeWidget()
 -- Create a wibox for each screen and add it
 mywibox = {}
 mypromptbox = {}
-mylayoutbox = {}
 mytaglist = {}
 mytaglist.buttons = awful.util.table.join(
                     awful.button({ }, 1, awful.tag.viewonly),
@@ -249,14 +237,7 @@ mytasklist.buttons = awful.util.table.join(
 for s = 1, screen.count() do
     -- Create a promptbox for each screen
     mypromptbox[s] = awful.widget.prompt()
-    -- Create an imagebox widget which will contains an icon indicating which layout we're using.
-    -- We need one layoutbox per screen.
-    mylayoutbox[s] = awful.widget.layoutbox(s)
-    mylayoutbox[s]:buttons(awful.util.table.join(
-                           awful.button({ }, 1, function () awful.layout.inc(layouts, 1) end),
-                           awful.button({ }, 3, function () awful.layout.inc(layouts, -1) end),
-                           awful.button({ }, 4, function () awful.layout.inc(layouts, 1) end),
-                           awful.button({ }, 5, function () awful.layout.inc(layouts, -1) end)))
+
     -- Create a taglist widget
     mytaglist[s] = awful.widget.taglist(s, awful.widget.taglist.filter.all, mytaglist.buttons)
 
@@ -278,7 +259,6 @@ for s = 1, screen.count() do
 	right_layout:add(mybatterywidget)
 	right_layout:add(myvolumewidget)
     right_layout:add(mytextclock)
-    right_layout:add(mylayoutbox[s])
 
     -- Now bring it all together (with the tasklist in the middle)
     local layout = wibox.layout.align.horizontal()
@@ -336,7 +316,6 @@ globalkeys = awful.util.table.join(
 	awful.key( { }, "XF86AudioMute", function () awful.util.spawn("amixer set Master toggle") updateVolumeWidget() end),
 	awful.key( { }, "XF86Sleep", function() awful.util.spawn("systemctl suspend") end),
 	awful.key( { "Control", "Mod1" --[[Is alt!]] }, "Delete", function() awful.util.spawn("i3lock --24 -i /home/roysten/wallpapers/lockscreen_scaled.png -o '#EBA42A' -w '#BF3232' -l '#ffffff'") end),
-	--awful.key( { "Control", "Mod1" --[[Is alt!]] }, "Delete", function() awful.util.spawn("bash -c \"scrot /tmp/i3.png; convert /tmp/i3.png -blur 0x3 /tmp/i3.png; i3lock -i /tmp/i3.png\"") end),
 
     -- Standard program
     awful.key({ modkey,           }, "Return", function () awful.util.spawn(terminal) end),
@@ -349,9 +328,6 @@ globalkeys = awful.util.table.join(
     awful.key({ modkey, "Shift"   }, "l",     function () awful.tag.incnmaster(-1)      end),
     awful.key({ modkey, "Control" }, "h",     function () awful.tag.incncol( 1)         end),
     awful.key({ modkey, "Control" }, "l",     function () awful.tag.incncol(-1)         end),
-    awful.key({ modkey,           }, "space", function () awful.layout.inc(layouts,  1) end),
-    awful.key({ modkey, "Shift"   }, "space", function () awful.layout.inc(layouts, -1) end),
-
     awful.key({ modkey, "Control" }, "n", awful.client.restore),
 
     -- Prompt
@@ -369,6 +345,11 @@ globalkeys = awful.util.table.join(
 )
 
 clientkeys = awful.util.table.join(
+    awful.key({ modkey,           }, "space", function (c) 
+		awful.titlebar.toggle(c)
+		--awful.placement.no_overlap(c)
+		--awful.placement.no_offscreen(c)
+	end),
     awful.key({ modkey,           }, "f",      function (c) c.fullscreen = not c.fullscreen  end),
     awful.key({ modkey, "Shift"   }, "c",      function (c) c:kill()                         end),
     awful.key({ modkey, "Control" }, "space",  awful.client.floating.toggle                     ),
@@ -453,9 +434,6 @@ awful.rules.rules = {
       properties = { floating = true } },
     { rule = { class = "gimp" },
       properties = { floating = true } },
-    -- Set Firefox to always map on tags number 2 of screen 1.
-    -- { rule = { class = "Firefox" },
-    --   properties = { tag = tags[1][2] } },
     { rule = { class = "plugin-container" },
 	properties = { floating = true } },
 }
@@ -465,12 +443,12 @@ awful.rules.rules = {
 -- Signal function to execute when a new client appears.
 client.connect_signal("manage", function (c, startup)
     -- Enable sloppy focus
-    c:connect_signal("mouse::enter", function(c)
+    --[[c:connect_signal("mouse::enter", function(c)
         if awful.layout.get(c.screen) ~= awful.layout.suit.magnifier
             and awful.client.focus.filter(c) then
             client.focus = c
         end
-    end)
+    end)]]--
 
     if not startup then
         -- Set the windows at the slave,
@@ -484,8 +462,7 @@ client.connect_signal("manage", function (c, startup)
         end
     end
 
-    local titlebars_enabled = false
-    if titlebars_enabled and (c.type == "normal" or c.type == "dialog") then
+    if c.type == "normal" or c.type == "dialog" then
         -- buttons for the titlebar
         local buttons = awful.util.table.join(
                 awful.button({ }, 1, function()
@@ -507,10 +484,7 @@ client.connect_signal("manage", function (c, startup)
 
         -- Widgets that are aligned to the right
         local right_layout = wibox.layout.fixed.horizontal()
-        right_layout:add(awful.titlebar.widget.floatingbutton(c))
         right_layout:add(awful.titlebar.widget.maximizedbutton(c))
-        right_layout:add(awful.titlebar.widget.stickybutton(c))
-        right_layout:add(awful.titlebar.widget.ontopbutton(c))
         right_layout:add(awful.titlebar.widget.closebutton(c))
 
         -- The title goes in the middle
@@ -527,6 +501,9 @@ client.connect_signal("manage", function (c, startup)
         layout:set_middle(middle_layout)
 
         awful.titlebar(c):set_widget(layout)
+
+		awful.placement.no_overlap(c)
+		awful.placement.no_offscreen(c)
     end
 end)
 
