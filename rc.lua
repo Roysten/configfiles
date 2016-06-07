@@ -12,6 +12,8 @@ local beautiful = require("beautiful")
 local naughty = require("naughty")
 local menubar = require("menubar")
 
+sound_channel = "Master"
+
 -- {{{ Error handling
 -- Check if awesome encountered an error during startup and fell back to
 -- another config (This code will only ever execute for the fallback config)
@@ -162,16 +164,17 @@ end
 myvolumewidget = wibox.widget.textbox()
 
 function updateVolumeWidget()
-	local amixerOutput = executecommand("amixer get Master")
+	local amixer_output = executecommand("amixer get " .. sound_channel)
+	local master_output = executecommand("amixer get Master")
 
-	local muted = string.find(amixerOutput, "off") ~= nil
+	local muted = string.find(master_output, "off") ~= nil
 
 	local icon
 
 	if muted then
 		icon = "🔇"
 	else
-		local percentage = string.match(amixerOutput, "%d?%d?%d%%")
+		local percentage = string.match(amixer_output, "%d?%d?%d%%")
 		local value = tonumber(string.sub(percentage, 1, string.len(percentage) - 1))
 
 		if value == 0 then
@@ -311,8 +314,8 @@ globalkeys = awful.util.table.join(
         end),
 
 	awful.key( { }, "XF86Launch3", function() redshift.toggle() end),
-	awful.key( { }, "XF86AudioRaiseVolume", function() awful.util.spawn("amixer set Master 2%+") updateVolumeWidget() end),
-	awful.key( { }, "XF86AudioLowerVolume", function() awful.util.spawn("amixer set Master 2%-") updateVolumeWidget() end),
+	awful.key( { }, "XF86AudioRaiseVolume", function() awful.util.spawn("amixer set " .. sound_channel .. " 2%+") updateVolumeWidget() end),
+	awful.key( { }, "XF86AudioLowerVolume", function() awful.util.spawn("amixer set " .. sound_channel .. " 2%-") updateVolumeWidget() end),
 	awful.key( { }, "XF86AudioMute", function () awful.util.spawn("amixer set Master toggle") updateVolumeWidget() end),
 	awful.key( { }, "XF86Sleep", function() awful.util.spawn("systemctl suspend") end),
 	awful.key( { "Control", "Mod1" --[[Is alt!]] }, "Delete", function() awful.util.spawn("i3lock --24 -i /home/roysten/wallpapers/lockscreen_scaled.png -o '#EBA42A' -w '#BF3232' -l '#ffffff'") end),
@@ -345,11 +348,6 @@ globalkeys = awful.util.table.join(
 )
 
 clientkeys = awful.util.table.join(
-    awful.key({ modkey,           }, "space", function (c) 
-		awful.titlebar.toggle(c)
-		--awful.placement.no_overlap(c)
-		--awful.placement.no_offscreen(c)
-	end),
     awful.key({ modkey,           }, "f",      function (c) c.fullscreen = not c.fullscreen  end),
     awful.key({ modkey, "Shift"   }, "c",      function (c) c:kill()                         end),
     awful.key({ modkey, "Control" }, "space",  awful.client.floating.toggle                     ),
@@ -419,6 +417,49 @@ clientbuttons = awful.util.table.join(
 root.keys(globalkeys)
 -- }}}
 
+function add_titlebar(c)
+	if c.type == "normal" or c.type == "dialog" then
+		-- buttons for the titlebar
+		local buttons = awful.util.table.join(
+		awful.button({ }, 1, function()
+			client.focus = c
+			c:raise()
+			awful.mouse.client.move(c)
+		end),
+		awful.button({ }, 3, function()
+			client.focus = c
+			c:raise()
+			awful.mouse.client.resize(c)
+		end)
+		)
+
+		-- Widgets that are aligned to the left
+		local left_layout = wibox.layout.fixed.horizontal()
+		left_layout:add(awful.titlebar.widget.iconwidget(c))
+		left_layout:buttons(buttons)
+
+		-- Widgets that are aligned to the right
+		local right_layout = wibox.layout.fixed.horizontal()
+		right_layout:add(awful.titlebar.widget.maximizedbutton(c))
+		right_layout:add(awful.titlebar.widget.closebutton(c))
+
+		-- The title goes in the middle
+		local middle_layout = wibox.layout.flex.horizontal()
+		local title = awful.titlebar.widget.titlewidget(c)
+		title:set_align("center")
+		middle_layout:add(title)
+		middle_layout:buttons(buttons)
+
+		-- Now bring it all together
+		local layout = wibox.layout.align.horizontal()
+		layout:set_left(left_layout)
+		layout:set_right(right_layout)
+		layout:set_middle(middle_layout)
+
+		awful.titlebar(c):set_widget(layout)
+	end
+end
+
 -- {{{ Rules
 awful.rules.rules = {
     -- All clients will match this rule.
@@ -435,7 +476,10 @@ awful.rules.rules = {
     { rule = { class = "gimp" },
       properties = { floating = true } },
     { rule = { class = "plugin-container" },
-	properties = { floating = true } },
+	properties = {floating = true } },
+	{ rule = { },
+	  except_any = { class = { "Firefox", "Plugin-container" } },
+  	  callback = add_titlebar },
 }
 -- }}}
 
@@ -462,49 +506,9 @@ client.connect_signal("manage", function (c, startup)
         end
     end
 
-    if c.type == "normal" or c.type == "dialog" then
-        -- buttons for the titlebar
-        local buttons = awful.util.table.join(
-                awful.button({ }, 1, function()
-                    client.focus = c
-                    c:raise()
-                    awful.mouse.client.move(c)
-                end),
-                awful.button({ }, 3, function()
-                    client.focus = c
-                    c:raise()
-                    awful.mouse.client.resize(c)
-                end)
-                )
-
-        -- Widgets that are aligned to the left
-        local left_layout = wibox.layout.fixed.horizontal()
-        left_layout:add(awful.titlebar.widget.iconwidget(c))
-        left_layout:buttons(buttons)
-
-        -- Widgets that are aligned to the right
-        local right_layout = wibox.layout.fixed.horizontal()
-        right_layout:add(awful.titlebar.widget.maximizedbutton(c))
-        right_layout:add(awful.titlebar.widget.closebutton(c))
-
-        -- The title goes in the middle
-        local middle_layout = wibox.layout.flex.horizontal()
-        local title = awful.titlebar.widget.titlewidget(c)
-        title:set_align("center")
-        middle_layout:add(title)
-        middle_layout:buttons(buttons)
-
-        -- Now bring it all together
-        local layout = wibox.layout.align.horizontal()
-        layout:set_left(left_layout)
-        layout:set_right(right_layout)
-        layout:set_middle(middle_layout)
-
-        awful.titlebar(c):set_widget(layout)
-
-		awful.placement.no_overlap(c)
-		awful.placement.no_offscreen(c)
-    end
+	awful.placement.no_overlap(c)
+	awful.placement.no_offscreen(c)
+	--add_titlebar(c)
 end)
 
 client.connect_signal("focus", function(c) c.border_color = beautiful.border_focus end)
